@@ -2,48 +2,82 @@
 
 let lineManager;
 let regenerateButton;
-let hasDrawnStaticLines = false;  // check for static lines
 
+// Input UI elements
+let bgColorPicker;
+let strokeColorPicker;
+let staticCountInput;
+let animatedCountInput;
+
+// Initialize canvas, UI
 function setup() {
-  createCanvas(595, 842);
-  background(214, 213, 208);
-  strokeWeight(1);
+  createCanvas(600, 800);
   noSmooth();
 
-  lineManager = new LineManager();
-  lineManager.generate();
+  // Default values
+  bgColorPicker = createColorPicker('#ffffff');
+  bgColorPicker.position(10, height + 10);
+  createSpan(' Background').position(70, height + 10);
 
-  regenerateButton = createButton('Generate');
-  regenerateButton.position(10, height + 10);
+  strokeColorPicker = createColorPicker('#000000');
+  strokeColorPicker.position(10, height + 40);
+  createSpan(' Line Color').position(70, height + 40);
+
+  staticCountInput = createInput('10', 'number');
+  staticCountInput.position(10, height + 70);
+  staticCountInput.size(50);
+  createSpan(' Static Lines').position(70, height + 70);
+
+  animatedCountInput = createInput('7', 'number');
+  animatedCountInput.position(10, height + 100);
+  animatedCountInput.size(50);
+  createSpan(' Animated Lines').position(70, height + 100);
+
+  regenerateButton = createButton('Regenerate');
+  regenerateButton.position(10, height + 140);
   regenerateButton.mousePressed(() => {
-    background(214, 213, 208);
-    hasDrawnStaticLines = false;  // drop flag
-    lineManager.generate();
+    redrawCanvas();
   });
+
+  // Initialize manager and draw once
+  lineManager = new LineManager();
+  redrawCanvas();
 }
 
+// Update lines with new settings
+function redrawCanvas() {
+  const bgColor = bgColorPicker.color();
+  const strokeColor = strokeColorPicker.color();
+  const staticCount = int(staticCountInput.value());
+  const animatedCount = int(animatedCountInput.value());
+
+  background(bgColor);
+  lineManager.setColors(strokeColor, bgColor);
+  lineManager.generate(staticCount, animatedCount);
+  redraw(); // triggers one draw call
+}
+
+// Draws animated lines
 function draw() {
   lineManager.update();
-
-  if (!hasDrawnStaticLines) {
-    lineManager.drawStatic();  // draw static lines once
-    hasDrawnStaticLines = true;
-  }
-
-  lineManager.drawAnimated();  // draw animated lines
+  lineManager.drawAnimated();
 }
 
-// Base interface for all lines
+// Base class for all line
 class BaseLine {
+  constructor(strokeColor) {
+    this.strokeColor = strokeColor;
+  }
+
   update() {}
   draw() {}
   isFinished() { return false; }
 }
 
-// Static line
+// Draw static lines
 class StaticLine extends BaseLine {
-  constructor(x1, y1, x2, y2) {
-    super();
+  constructor(x1, y1, x2, y2, strokeColor) {
+    super(strokeColor);
     this.x1 = x1;
     this.y1 = y1;
     this.x2 = x2;
@@ -51,15 +85,15 @@ class StaticLine extends BaseLine {
   }
 
   draw() {
-    stroke(0);
+    stroke(this.strokeColor);
     line(this.x1, this.y1, this.x2, this.y2);
   }
 }
 
-// Animated line
+// Draw lines animation
 class AnimatedLine extends BaseLine {
-  constructor(x1, y1, x2, y2, step, perpX, perpY) {
-    super();
+  constructor(x1, y1, x2, y2, step, perpX, perpY, strokeColor) {
+    super(strokeColor);
     this.x1 = x1;
     this.y1 = y1;
     this.x2 = x2;
@@ -87,7 +121,7 @@ class AnimatedLine extends BaseLine {
   }
 
   draw() {
-    stroke(0);
+    stroke(this.strokeColor);
     line(this.x1, this.y1, this.x2, this.y2);
   }
 
@@ -96,14 +130,23 @@ class AnimatedLine extends BaseLine {
   }
 }
 
-// Manager class for lines
+// Line manager
 class LineManager {
   constructor() {
     this.staticLines = [];
     this.animatedLines = [];
+    this.strokeColor = color(0);
+    this.bgColor = color(255);
   }
 
-  generate() {
+  // Set bg color
+  setColors(strokeColor, bgColor) {
+    this.strokeColor = strokeColor;
+    this.bgColor = bgColor;
+  }
+
+  // Generate new static and animated lines
+  generate(staticCount, animatedCount) {
     this.staticLines = [];
     this.animatedLines = [];
 
@@ -114,46 +157,43 @@ class LineManager {
     let jitter = 20;
 
     // Static lines
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < staticCount; i++) {
       let [x1, y1] = this.randomGridPoint(cols, rows, spacingX, spacingY, jitter);
       let [x2, y2] = this.randomGridPoint(cols, rows, spacingX, spacingY, jitter);
-      this.staticLines.push(new StaticLine(x1, y1, x2, y2));
+      const line = new StaticLine(x1, y1, x2, y2, this.strokeColor);
+      line.draw(); // draw once
+      this.staticLines.push(line);
     }
 
     // Animated lines
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < animatedCount; i++) {
       let [x1, y1] = this.randomGridPoint(cols, rows, spacingX, spacingY, jitter);
       let [x2, y2] = this.randomGridPoint(cols, rows, spacingX, spacingY, jitter);
-
       let dx = x2 - x1;
       let dy = y2 - y1;
       let len = dist(x1, y1, x2, y2);
       let perpX = -dy / len;
       let perpY = dx / len;
       let step = random(1, 5);
-
-      this.animatedLines.push(new AnimatedLine(x1, y1, x2, y2, step, perpX, perpY));
+      this.animatedLines.push(new AnimatedLine(x1, y1, x2, y2, step, perpX, perpY, this.strokeColor));
     }
   }
 
+  // Update animated lines
   update() {
     for (let line of this.animatedLines) {
       line.update();
     }
   }
 
-  drawStatic() {
-    for (let line of this.staticLines) {
-      line.draw();
-    }
-  }
-
+  // Draw animated lines
   drawAnimated() {
     for (let line of this.animatedLines) {
       line.draw();
     }
   }
 
+  // Random grid jitter
   randomGridPoint(cols, rows, spacingX, spacingY, jitter) {
     let gx = int(random(cols));
     let gy = int(random(rows));
@@ -162,3 +202,4 @@ class LineManager {
     return [x, y];
   }
 }
+
