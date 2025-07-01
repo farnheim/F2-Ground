@@ -11,15 +11,15 @@ let animatedCountInput;
 
 // Initialize canvas, UI
 function setup() {
-  createCanvas(600, 800);
+  createCanvas(595, 842);
   noSmooth();
 
   // Default values
-  bgColorPicker = createColorPicker('#ffffff');
+  bgColorPicker = createColorPicker('#D6D5D0');
   bgColorPicker.position(10, height + 10);
   createSpan(' Background').position(70, height + 10);
 
-  strokeColorPicker = createColorPicker('#000000');
+  strokeColorPicker = createColorPicker('#262324');
   strokeColorPicker.position(10, height + 40);
   createSpan(' Line Color').position(70, height + 40);
 
